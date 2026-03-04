@@ -31,7 +31,7 @@ jobs:
         run: |
           sed -i 's/#lto = /lto = /g' Cargo.toml
           sed -i 's/#codegen-units /codegen-units /g' Cargo.toml
-          cargo build --release --target x86_64-pc-windows-gnu --bin krokiet --features "add_windows_icon"
+          cargo build --release --target x86_64-pc-windows-gnu --bin krokiet --features "add_windows_icon,libavif"
           mv target/x86_64-pc-windows-gnu/release/krokiet.exe windows_krokiet_on_linux.exe
 
       - name: Compile Krokiet Debug
@@ -39,7 +39,7 @@ jobs:
         run: |
           sed -i 's/^\(\[profile\.dev\.package.*\)/#\1/' Cargo.toml
           sed -i 's|^opt-level = 3 # OPT PACKAGES|#opt-level = 3 # OPT PACKAGES|' Cargo.toml
-          cargo build --target x86_64-pc-windows-gnu --bin krokiet --features "add_windows_icon"
+          cargo build --target x86_64-pc-windows-gnu --bin krokiet --features "add_windows_icon,libavif"
           mv target/x86_64-pc-windows-gnu/debug/krokiet.exe windows_krokiet_on_linux.exe
 
       - name: Pack with 7z
@@ -67,6 +67,7 @@ jobs:
   # Skia not provides support for gnu toolchain, which is easy to cross-compile - https://github.com/rust-skia/rust-skia/issues/345
   # So need to compile krokiet on msvc Windows
   krokiet-compiled-on-windows:
+    if: false
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -169,6 +170,7 @@ jobs:
           token: ${{ secrets.PAT_REPOSITORY }}
 
   container_4_12:
+    if: false
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/mglolenstine/gtk4-cross:gtk-4.12
