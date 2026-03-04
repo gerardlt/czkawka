@@ -74,6 +74,44 @@ jobs:
         run: |
           rustup default 1.92.0
 
+      - name: Install AVIF dependencies (vcpkg)
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $vcpkgRoot = $env:VCPKG_INSTALLATION_ROOT
+          if ([string]::IsNullOrWhiteSpace($vcpkgRoot)) {
+            $vcpkgRoot = Join-Path $env:GITHUB_WORKSPACE 'vcpkg'
+          }
+
+          $vcpkgExe = Join-Path $vcpkgRoot 'vcpkg.exe'
+          if (-not (Test-Path $vcpkgExe)) {
+            Write-Host "vcpkg not found at $vcpkgExe, bootstrapping..."
+            git clone https://github.com/microsoft/vcpkg $vcpkgRoot
+            & (Join-Path $vcpkgRoot 'bootstrap-vcpkg.bat')
+          }
+
+          "VCPKG_ROOT=$vcpkgRoot" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "VCPKG_DEFAULT_TRIPLET=x64-windows-static-md" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+          & $vcpkgExe install libavif dav1d --triplet x64-windows-static-md
+
+      - name: Install pkg-config (for dav1d-sys)
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          choco install -y pkgconfiglite
+
+          $vcpkgRoot = $env:VCPKG_INSTALLATION_ROOT
+          if ([string]::IsNullOrWhiteSpace($vcpkgRoot)) {
+            $vcpkgRoot = Join-Path $env:GITHUB_WORKSPACE 'vcpkg'
+          }
+
+          $pcPath = Join-Path $vcpkgRoot 'installed\x64-windows-static-md\lib\pkgconfig'
+          if (Test-Path $pcPath) {
+            "PKG_CONFIG_PATH=$pcPath" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          }
+
       - name: Compile Krokiet Release
         if: ${{ github.ref == 'refs/heads/master' }}
         run: |
@@ -81,13 +119,13 @@ jobs:
           powershell -Command "(Get-Content Cargo.toml) -replace '#lto = ', 'lto = ' | Set-Content Cargo.toml"
           # Replace '#codegen-units ' with 'codegen-units ' in Cargo.toml
           powershell -Command "(Get-Content Cargo.toml) -replace '#codegen-units ', 'codegen-units ' | Set-Content Cargo.toml"
-          cargo build --release --bin krokiet --no-default-features --features "winit_skia_opengl,winit_software,add_windows_icon"
+          cargo build --release --bin krokiet --no-default-features --features "winit_skia_opengl,winit_software,add_windows_icon,libavif"
           mv target/release/krokiet.exe windows_krokiet_on_windows_skia_opengl.exe
-          cargo build --release --bin krokiet --no-default-features --features "winit_skia_vulkan,winit_software,add_windows_icon"
+          cargo build --release --bin krokiet --no-default-features --features "winit_skia_vulkan,winit_software,add_windows_icon,libavif"
           mv target/release/krokiet.exe windows_krokiet_on_windows_skia_vulkan.exe
-          cargo build --release --bin krokiet --no-default-features --features "femtovg_wgpu,add_windows_icon"
+          cargo build --release --bin krokiet --no-default-features --features "femtovg_wgpu,add_windows_icon,libavif"
           mv target/release/krokiet.exe windows_krokiet_on_windows_femtovg_wgpu.exe
-          cargo build --release --bin krokiet --no-default-features --features "winit_femtovg,winit_skia_opengl,winit_skia_vulkan,winit_software,femtovg_wgpu,add_windows_icon"
+          cargo build --release --bin krokiet --no-default-features --features "winit_femtovg,winit_skia_opengl,winit_skia_vulkan,winit_software,femtovg_wgpu,add_windows_icon,libavif"
           mv target/release/krokiet.exe windows_krokiet_on_windows_all_backends.exe
 
       - name: Compile Krokiet Debug
@@ -97,13 +135,13 @@ jobs:
           powershell -Command "(Get-Content Cargo.toml) -replace '^\[profile\.dev\.package.*', { '#' + \$_ } | Set-Content Cargo.toml"
           # Comment out 'opt-level = 3 # OPT PACKAGES'
           powershell -Command "(Get-Content Cargo.toml) -replace '^opt-level = 3 # OPT PACKAGES', '#opt-level = 3 # OPT PACKAGES' | Set-Content Cargo.toml"
-          cargo build --bin krokiet --no-default-features --features "winit_skia_opengl,winit_software,add_windows_icon"
+          cargo build --bin krokiet --no-default-features --features "winit_skia_opengl,winit_software,add_windows_icon,libavif"
           mv target/debug/krokiet.exe windows_krokiet_on_windows_skia_opengl.exe
-          cargo build --bin krokiet --no-default-features --features "winit_skia_vulkan,winit_software,add_windows_icon"
+          cargo build --bin krokiet --no-default-features --features "winit_skia_vulkan,winit_software,add_windows_icon,libavif"
           mv target/debug/krokiet.exe windows_krokiet_on_windows_skia_vulkan.exe
-          cargo build --bin krokiet --no-default-features --features "femtovg_wgpu,add_windows_icon"
+          cargo build --bin krokiet --no-default-features --features "femtovg_wgpu,add_windows_icon,libavif"
           mv target/debug/krokiet.exe windows_krokiet_on_windows_femtovg_wgpu.exe
-          cargo build --bin krokiet --no-default-features --features "winit_femtovg,winit_skia_opengl,winit_skia_vulkan,winit_software,femtovg_wgpu,add_windows_icon"
+          cargo build --bin krokiet --no-default-features --features "winit_femtovg,winit_skia_opengl,winit_skia_vulkan,winit_software,femtovg_wgpu,add_windows_icon,libavif"
           mv target/debug/krokiet.exe windows_krokiet_on_windows_all_backends.exe
 
       - name: Upload artifacts
